@@ -17,17 +17,12 @@ def create_app(config_name="default"):
     bcrypt.init_app(app)
     jwt.init_app(app)
 
-    # Initialize MongoDB
     initialize_db(app)
 
-    # Register blueprints
-    from app.routes.appHealthRoutes import health_bp
-    app.register_blueprint(health_bp)
+    from app.routes.authRoutes import register_auth_routes
+    register_auth_routes(app)
 
-    from app.routes.userRoutes import auth_bp
-    app.register_blueprint(auth_bp)
-
-    from app.routes.fileRoutes import file_bp
-    app.register_blueprint(file_bp)
+    from app.routes.fileRoutes import register_file_routes
+    register_file_routes(app)
 
     return app

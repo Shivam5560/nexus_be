@@ -25,13 +25,11 @@ class Config:
 
 class DevelopmentConfig(Config):
     """Development configuration."""
-
     DEBUG = True
 
 
 class ProductionConfig(Config):
     """Production configuration."""
-
     DEBUG = False
 
 

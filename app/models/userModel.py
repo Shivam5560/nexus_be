@@ -3,7 +3,7 @@ from bson import ObjectId
 
 
 class User:
-    def __init__(self, username, email, password, role='user', created_at=None, _id=None):
+    def __init__(self, username, email, password, role='default', created_at=None, _id=None):
         self._id = _id if _id else ObjectId()
         self.username = username
         self.email = email

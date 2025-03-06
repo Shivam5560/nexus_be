@@ -15,8 +15,5 @@ def login_route():
         return jsonify({"msg": "Missing JSON in request"}), 400
     return login()
 
-# def register_auth_routes(app):
-#     """
-#     Register authentication routes with the application
-#     """
-#     app.register_blueprint(auth_bp)
+def register_auth_routes(app):
+    app.register_blueprint(auth_bp)

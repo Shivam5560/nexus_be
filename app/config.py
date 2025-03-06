@@ -18,8 +18,8 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     BCRYPT_ROUNDS = 12
-    UPLOAD_FOLDER = UPLOAD_FOLDER
-    ALLOWED_EXTENSIONS = {"docx","pdf"}
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit
 
 
 

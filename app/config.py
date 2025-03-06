@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, '../uploads')
 
 class Config:
     """Base configuration."""
@@ -16,6 +18,8 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     BCRYPT_ROUNDS = 12
+    UPLOAD_FOLDER = UPLOAD_FOLDER
+    ALLOWED_EXTENSIONS = {"docx","pdf"}
 
 
 

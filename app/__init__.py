@@ -3,11 +3,14 @@ from app.config import config
 from app.services.dbServices import initialize_db
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
+
 bcrypt = Bcrypt()
 jwt = JWTManager()
+
 def create_app(config_name="default"):
     """Application factory function."""
     app = Flask(__name__)
+
     from app.config import config
     app.config.from_object(config[config_name])
 
@@ -23,5 +26,8 @@ def create_app(config_name="default"):
 
     from app.routes.userRoutes import auth_bp
     app.register_blueprint(auth_bp)
+
+    from app.routes.fileRoutes import file_bp
+    app.register_blueprint(file_bp)
 
     return app

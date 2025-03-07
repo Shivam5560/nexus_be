@@ -16,6 +16,9 @@ class Config:
     MONGO_URI = os.getenv("MONGO_URI")
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    UPLOAD_FOLDER = 'uploads'
+    ALLOWED_EXTENSIONS = {'pdf'}
+    SECRET_KEY = os.getenv('GROQ_API_KEY','HF_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     BCRYPT_ROUNDS = 12
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
@@ -38,3 +41,4 @@ config = {
     "production": ProductionConfig,
     "default": DevelopmentConfig,
 }
+

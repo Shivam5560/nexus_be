@@ -4,3 +4,11 @@ flask-pymongo
 flask-bcrypt~=1.0.1
 python-dotenv~=1.0.1
 pymongo~=4.11.1
+llama-index-embeddings-huggingface
+llama-index
+llama-index-llms-groq
+scikit-learn
+sentence-transformers
+groq==0.4.2
+numpy
+spacy

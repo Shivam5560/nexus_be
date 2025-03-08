@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token
-from app.services.authServices import create_user, validate_user
+from app.services.auth_service import create_user, validate_user
 
 
 def register():

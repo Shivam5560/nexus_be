@@ -1,5 +1,5 @@
-from app.models.userModel import User
-from app.services.dbServices import get_db
+from app.models.user_model import User
+from app.services.db_service import get_db
 from app import bcrypt
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError

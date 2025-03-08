@@ -1,7 +1,7 @@
 import logging
 import os
 from app import create_app
-from app.utils.healthUtils import check_health
+from app.utils.health_util import check_health
 
 app = create_app(os.getenv("FLASK_ENV", "default"))
 

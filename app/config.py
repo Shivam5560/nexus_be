@@ -20,7 +20,8 @@ class Config:
     BCRYPT_ROUNDS = 12
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit
-
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    HF_KEY = os.getenv("HF_KEY")
 
 
 class DevelopmentConfig(Config):

@@ -12,3 +12,4 @@ sentence-transformers
 groq==0.4.2
 numpy
 spacy
+gunicorn

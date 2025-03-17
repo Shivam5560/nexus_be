@@ -1,4 +1,3 @@
-import logging
 import os
 from app import create_app
 from app.utils.health_util import check_health

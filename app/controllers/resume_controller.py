@@ -1,12 +1,11 @@
 import os
 import json
 from flask import request, jsonify, current_app
-from openai import embeddings
 from werkzeug.utils import secure_filename
 
 from app.services.query_service import generate_query_engine
 from app.services.resume_analyzer_service import PracticalResumeAnalyzer
-from app.utils.file_util import allowed_file
+from app.services.file_service import save_file
 from app.utils.resume_template import TEMPLATE
 from app.utils.text_util import advanced_ats_similarity, get_embed_model
 
@@ -18,32 +17,12 @@ def upload_file():
         return jsonify({'error': 'No file part in the request'}), 400
 
     file = request.files['file']
+    user_id = request.form.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
 
-    if not file or file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    # Validate file extension
-    if not allowed_file(file.filename):
-        return jsonify({"error": "File type not allowed. Only PDF and DOCX are supported."}), 400
-
-    # Secure filename and create unique name
-    filename = secure_filename(file.filename)
-
-    # Ensure upload folder exists
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
-    os.makedirs(upload_folder, exist_ok=True)
-
-    file_path = os.path.join(upload_folder, filename)
-    file.save(file_path)
-
-    file_size = os.path.getsize(file_path)
-
-    return jsonify({
-        "message": "File uploaded successfully",
-        "filename": filename,
-        "size_bytes": file_size,
-        "path": file_path
-    }), 201
+    response, status_code = save_file(file, user_id)
+    return jsonify(response), status_code
 
 
 def analyze_resume():

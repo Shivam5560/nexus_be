@@ -1,5 +1,5 @@
 import time
-from app.services.dbServices import get_db
+from app.services.db_service import get_db
 
 
 def check_health():

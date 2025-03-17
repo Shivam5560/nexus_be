@@ -1,6 +1,6 @@
 from flask import Flask
 from app.config import config
-from app.services.dbServices import initialize_db
+from app.services.db_service import initialize_db
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 
@@ -19,10 +19,10 @@ def create_app(config_name="default"):
 
     initialize_db(app)
 
-    from app.routes.authRoutes import register_auth_routes
+    from app.routes.user_route import register_auth_routes
     register_auth_routes(app)
 
-    from app.routes.fileRoutes import register_file_routes
-    register_file_routes(app)
+    from app.routes.resume_route import register_resume_routes
+    register_resume_routes(app)
 
     return app

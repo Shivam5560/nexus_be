@@ -1,5 +1,5 @@
-from app.models.userModel import User
-from app.services.dbServices import get_db
+from app.models.user_model import User
+from app.services.db_service import get_db
 from app import bcrypt
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
@@ -31,6 +31,13 @@ def create_user(username, email, password, role='user'):
     except Exception as e:
         return None, str(e)
 
+def get_user_by_id(user_id):
+    db = get_db()
+    obj_id = ObjectId(user_id)
+    user_data = db.users.find_one({'_id': obj_id})
+    if user_data:
+        return User.from_dict(user_data)
+    return None
 
 def get_user_by_username(username):
     """

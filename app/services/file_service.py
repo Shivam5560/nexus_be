@@ -26,26 +26,32 @@ def save_file(file, user_id):
         return {"error": "Invalid user ID. User does not exist."}, 400
 
     filename = secure_filename(file.filename)
-
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', './uploads')
-    os.makedirs(upload_folder, exist_ok=True)
-
-    abs_file_path = os.path.join(upload_folder, filename)
-    file.save(abs_file_path)
-
-    rel_path_parts = abs_file_path.split('uploads')
-    if len(rel_path_parts) > 1:
-        rel_file_path = 'uploads' + rel_path_parts[1]
-    else:
-        rel_file_path = os.path.join('uploads', filename)
-    file_size = os.path.getsize(abs_file_path)
+    os.makedirs(current_app.config.get('UPLOAD_FOLDER'), exist_ok=True)
+    file_path = os.path.join(current_app.config.get('UPLOAD_FOLDER'), filename)
+    file.save(file_path)
 
     db = get_db()
-    file_record = Resume(user_id=ObjectId(user_id), file_path=rel_file_path)
+    file_record = Resume(user_id=ObjectId(user._id),file_path=file_path)
     db.resumes.insert_one(file_record.to_dict())
+    file_size = os.path.getsize(file_path)
+
     return {
         "message": "File uploaded successfully",
         "filename": filename,
         "size_bytes": file_size,
-        "path": rel_file_path
+        "path": file_path
     }, 201
+
+def get_abs_path(relative_path):
+    upload_folder = current_app.config.get("UPLOAD_FOLDER")
+    upload_folder = os.path.abspath(upload_folder)
+    absolute_path = os.path.join(upload_folder, os.path.basename(relative_path))
+
+    return absolute_path
+
+def get_resume_by_user_id(user_id):
+    db = get_db()
+    resume = db.resumes.find_one({"user_id": ObjectId(user_id)})
+    if resume:
+        return Resume.from_dict(resume)
+    return None

@@ -3,17 +3,11 @@ from app.services.db_service import get_db
 
 
 def check_health():
-    """
-    Check application health including MongoDB connection.
-    Returns a dictionary with health status information.
-    """
     start_time = time.time()
 
-    # Check database connection
     db_status = "UP"
     db_error = None
     try:
-        # Simple ping to check MongoDB connection
         db = get_db()
         db.command("ping")
     except Exception as e:

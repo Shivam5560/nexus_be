@@ -2,11 +2,9 @@ import os
 from datetime import timedelta
 
 from dotenv import load_dotenv
+from flask import current_app
 
 load_dotenv()
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, '../uploads')
 
 class Config:
     """Base configuration."""
@@ -17,9 +15,9 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER")
     BCRYPT_ROUNDS = 12
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB limit
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     HF_KEY = os.getenv("HF_KEY")
 

@@ -55,3 +55,10 @@ def get_resume_by_user_id(user_id):
     if resume:
         return Resume.from_dict(resume)
     return None
+
+def get_all_resume_by_user_id(user_id):
+    db = get_db()
+    resumes = db.resumes.find_all({"user_id":ObjectId(user_id)})
+    if resumes:
+        return Resume.from_dict(resumes)
+    return None

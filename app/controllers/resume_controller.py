@@ -3,7 +3,7 @@ from flask import request, jsonify, current_app
 
 from app.services.query_service import generate_query_engine
 from app.services.resume_analyzer_service import PracticalResumeAnalyzer
-from app.services.file_service import save_file, get_resume_by_user_id, get_abs_path
+from app.services.file_service import save_file, get_resume_by_user_id, get_abs_path, get_all_resume_by_user_id
 from app.utils.resume_template import TEMPLATE
 from app.utils.text_util import advanced_ats_similarity, get_embed_model
 
@@ -94,3 +94,13 @@ def analyze_resume():
         )
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+def get_all_resume_by_user_id():
+    user_id = request.json["user_id"]
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+
+    file = get_all_resume_by_user_id(user_id)
+    response, status_code = save_file(file, user_id)
+    return jsonify(response), status_code

@@ -2,11 +2,12 @@ from datetime import datetime
 from bson import ObjectId
 
 class Resume:
-    def __init__(self, file_path, user_id, uploaded_at=None, _id=None):
+    def __init__(self, file_path, user_id, hash, uploaded_at=None, _id=None):
         self._id = _id if _id else ObjectId()
         self.file_path = file_path
         self.user_id = ObjectId(user_id)
         self.uploaded_at = uploaded_at if uploaded_at else datetime.now()
+        self.hash = hash
 
     @staticmethod
     def from_dict(resume_dict):
@@ -14,7 +15,8 @@ class Resume:
             file_path=resume_dict.get('file_path'),
             user_id=resume_dict.get('user_id'),
             uploaded_at=resume_dict.get('uploaded_at'),
-            _id=resume_dict.get('_id')
+            _id=resume_dict.get('_id'),
+            hash = resume_dict.get('hash')
         )
 
     def to_dict(self):
@@ -22,7 +24,8 @@ class Resume:
             '_id': self._id,
             'file_path': self.file_path,
             'user_id': self.user_id,
-            'uploaded_at': self.uploaded_at
+            'uploaded_at': self.uploaded_at,
+            'hash':self.hash
         }
 
     def to_json(self):
@@ -30,4 +33,5 @@ class Resume:
         resume_dict['_id'] = str(resume_dict['_id'])
         resume_dict['user_id'] = str(resume_dict['user_id'])
         resume_dict['uploaded_at'] = resume_dict['uploaded_at'].isoformat()
+        resume_dict['hash'] = resume_dict['hash']
         return resume_dict

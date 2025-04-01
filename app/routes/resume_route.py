@@ -9,11 +9,11 @@ def upload_file_route():
         return jsonify({"msg": "Missing file in request"}), 400
     return upload_file()
 
-@resume_bp.route('/analyze', methods=['POST'])
-def analyze_resume_route():
-    if not request.is_json:
-        return jsonify({"msg": "Missing JSON in request"}), 400
-    return analyze_resume()
+# @resume_bp.route('/analyze', methods=['POST'])
+# def analyze_resume_route():
+#     if not request.is_json:
+#         return jsonify({"msg": "Missing JSON in request"}), 400
+#     return analyze_resume()
 
 @resume_bp.route('/getallresumebyid',method=['GET'])
 def get_all_resume_route():

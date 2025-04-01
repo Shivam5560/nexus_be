@@ -7,6 +7,7 @@ from bson import ObjectId
 from flask import current_app
 
 
+
 def allowed_file(filename, allowed_extensions=None):
     if allowed_extensions is None:
         allowed_extensions = {'pdf', 'docx'}
@@ -14,7 +15,7 @@ def allowed_file(filename, allowed_extensions=None):
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
-def save_file(file, user_id):
+def save_file(file, user_id, hash):
     if not file or file.filename == '':
         return {"error": "No selected file"}, 400
 
@@ -24,6 +25,9 @@ def save_file(file, user_id):
     user = get_user_by_id(user_id)
     if not user:
         return {"error": "Invalid user ID. User does not exist."}, 400
+    
+    if hash == '' or hash == None:
+        return {"error":"Secure file hash missing"}, 500
 
     filename = secure_filename(file.filename)
     os.makedirs(current_app.config.get('UPLOAD_FOLDER'), exist_ok=True)
@@ -31,7 +35,7 @@ def save_file(file, user_id):
     file.save(file_path)
 
     db = get_db()
-    file_record = Resume(user_id=ObjectId(user._id),file_path=file_path)
+    file_record = Resume(user_id=ObjectId(user._id),file_path=file_path,hash=hash)
     db.resumes.insert_one(file_record.to_dict())
     file_size = os.path.getsize(file_path)
 

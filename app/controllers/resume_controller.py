@@ -33,11 +33,11 @@ def get_all_resumes(user_id):
     resumes = get_all_resumes_by_user_id(user_id)
     if not resumes:
         return jsonify({"error": "No resumes found for this user"}), 404
-    response_date = {
+    response_data = {
         "count": len(resumes),
         "list": [resume.to_json() for resume in resumes],
     }
-    return jsonify(response_date), 200
+    return jsonify(response_data), 200
 
 
 def analyze_resume():

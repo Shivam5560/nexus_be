@@ -20,7 +20,7 @@ def upload_file():
     if not user_id:
         return jsonify({"error": "User ID is required"}), 400
 
-    response, status_code = save_file(file, user_id)
+    response, status_code = save_file(file=file,user_id=user_id)
     return jsonify(response), status_code
 
 def get_all_resumes():

@@ -173,3 +173,5 @@ cython_debug/
 
 uploads
 ./app/storage_mini
+
+myenv

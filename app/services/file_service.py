@@ -55,3 +55,11 @@ def get_resume_by_user_id(user_id):
     if resume:
         return Resume.from_dict(resume)
     return None
+
+def get_all_resumes_by_user_id(user_id):
+    db = get_db()
+    resumes = db.resumes.find({"user_id": ObjectId(user_id)})
+    resume_list = []
+    for resume in resumes:
+        resume_list.append(Resume.from_dict(resume))
+    return resume_list

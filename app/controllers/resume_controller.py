@@ -1,11 +1,13 @@
 import json
 from flask import request, jsonify, current_app
-
+import re
 from app.services.query_service import generate_query_engine
 from app.services.resume_analyzer_service import PracticalResumeAnalyzer
 from app.services.file_service import save_file, get_resume_by_user_id, get_abs_path, get_all_resumes_by_user_id
 from app.utils.resume_template import TEMPLATE
+from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity, get_embed_model
+import numpy as np
 
 analyzer = PracticalResumeAnalyzer()
 embedding_model = get_embed_model()
@@ -35,7 +37,8 @@ def get_all_resumes():
         "list": [resume.to_json() for resume in resumes],
     }
     return jsonify(response_date), 200
-    
+  
+  
 
 def analyze_resume():
     data = request.json
@@ -55,7 +58,7 @@ def analyze_resume():
 
     resume_path = user_data.file_path
     abs_resume_path = get_abs_path(resume_path)
-
+    print(abs_resume_path)
     try:
         query_engine, documents = generate_query_engine(
             abs_resume_path, embedding_model
@@ -74,26 +77,82 @@ def analyze_resume():
         response = response[7 : len(response) - 3]
 
         resume_dict = json.loads(response)
-        technical = advanced_ats_similarity(resume_dict, job_description)
+        #print(resume_dict)
+        
+       
+
+        # 3. Process Job Description String into Dictionary
+        job_description_dict = None
+        try:
+            
+            with open('jd.txt','w') as file:
+                file.write(job_description)
+            file_path2 = 'jd.txt'
+            query_engine2, documents2 = generate_query_engine(
+            file_path2, embedding_model
+            )
+            if not query_engine2 or not documents2:
+                return jsonify({"error": "Failed to process documents"}), 500
+
+            jd_str = ""
+            for doc in documents2:
+                jd_str += doc.text_resource.text
+          
+            jd_prompt = JD_TEMPLATE.replace("[Insert job description text here]", jd_str)
+            jd_llm_response_str = query_engine.query(jd_prompt).response
+            #with open('test.txt','w') as file:
+            #    file.write(str(jd_llm_response_str))
+            jd_llm_response_str = jd_llm_response_str[7 : len(jd_llm_response_str) - 3]
+
+            job_description_dict = json.loads(jd_llm_response_str)
+
+        except Exception as e:
+            print(f"Error processing job description into dictionary: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": f"Failed to process job description: {e}"}), 500
+        
+        def convert_to_normal_types(data):
+            """Recursively converts NumPy types within a dictionary to standard Python types."""
+            new_data = {}
+            for key, value in data.items():
+                if isinstance(value, np.generic):
+                    new_data[key] = value.item()  # Convert NumPy scalar to Python scalar
+                elif isinstance(value, dict):
+                    new_data[key] = convert_to_normal_types(value)
+                elif isinstance(value, list):
+                    new_data[key] = [item.item() if isinstance(item, np.generic) else item for item in value]
+                else:
+                    new_data[key] = value
+            return new_data
+
+
+        technical = advanced_ats_similarity(resume_dict, job_description_dict)
         # Analyze a resume
-        print(technical)
-        grammar_score, recommendations, section_scores = analyzer.analyze_resume(
+        technical = convert_to_normal_types(technical)
+        grammar_score, recommendations, section_scores,justifications = analyzer.analyze_resume(
             resume_str, resume_dict, industry="tech"
         )
 
         overall_score = (
             technical["similarity_score"] * 0.6 + grammar_score * 0.4
-        ) * 1.1
+        )
         print("Overall_Score", overall_score)
         analysis_results = {
-            "resume_data": dict(resume_dict),
+            "overall_score": min(round(overall_score, 2), 100),
+            "technical_score":technical,
             "grammar_analysis": {
                 "score": grammar_score,
                 "recommendations": recommendations,
                 "section_scores": section_scores,
             },
-            "overall_score": min(round(overall_score, 2), 100),
+            "justifications":justifications,
+            "resume_data": dict(resume_dict),
         }
+        #print(analysis_results['grammar_analysis']['score'])
+        #print(analysis_results['grammar_analysis']['section_scores'])
+        #print(analysis_results['justifications'])
+        #print(analysis_results)
         return jsonify(analysis_results), 200
 
     except json.JSONDecodeError as e:

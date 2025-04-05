@@ -13,3 +13,6 @@ groq==0.4.2
 numpy
 spacy
 gunicorn
+language_tool_python
+python-Levenshtein
+thefuzz

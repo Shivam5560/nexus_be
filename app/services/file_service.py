@@ -1,6 +1,7 @@
 import os
 from werkzeug.utils import secure_filename
 from app.models.resume_model import Resume
+from app.utils.resume_util import check_unique_file_name    
 from app.services.db_service import get_db
 from app.services.auth_service import get_user_by_id
 from bson import ObjectId
@@ -29,6 +30,7 @@ def save_file(file, user_id, hash):
     if hash == '' or hash == None:
         return {"error":"Secure file hash missing"}, 500
 
+<<<<<<< Updated upstream
     filename = secure_filename(file.filename)
     os.makedirs(current_app.config.get('UPLOAD_FOLDER'), exist_ok=True)
     file_path = os.path.join(current_app.config.get('UPLOAD_FOLDER'), filename)
@@ -36,6 +38,28 @@ def save_file(file, user_id, hash):
 
     db = get_db()
     file_record = Resume(user_id=ObjectId(user._id),file_path=file_path,hash=hash)
+=======
+    db = get_db()
+    filename = secure_filename(file.filename)
+    os.makedirs(current_app.config.get('UPLOAD_FOLDER'), exist_ok=True)
+    file_path = os.path.join(current_app.config.get('UPLOAD_FOLDER'), filename)
+
+    file_record = Resume(
+        user_id=ObjectId(user._id), file_path=file_path, file_name=filename
+    )
+
+    name, ext = os.path.splitext(filename)
+
+    # Find all matching filenames for the user
+    user_files = list(db.resumes.find({
+        "user_id": ObjectId(user_id)
+    }))
+
+    return check_unique_file_name(file.filename,user_files)
+
+    file.save(file_path)
+
+>>>>>>> Stashed changes
     db.resumes.insert_one(file_record.to_dict())
     file_size = os.path.getsize(file_path)
 

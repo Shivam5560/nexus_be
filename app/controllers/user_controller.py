@@ -31,7 +31,7 @@ def login():
 
     user, error = validate_user(username_or_email, password)
     if error:
-        return jsonify({"msg": error}), 401
+        return jsonify({"msg": "Invalid Username or Password"}), 401
 
     access_token = create_access_token(identity=str(user._id))
 

@@ -76,103 +76,169 @@ def calculate_similarity(text1: str, text2: str, embed_model: Any) -> float:
 # --- Rewritten ATS Logic (Dictionary Comparison) ---
 def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Calculates ATS score by comparing structured resume and job description dictionaries.
+    Calculates ATS score by comparing structured resume and job description dictionaries,
+    including justifications for the scores.
     """
     embed_model = get_embed_model()
     results = {
-        "similarity_score": 0.0, "pass": False, "keywords_missing": [],
-        "keywords_found_count": 0, "total_keywords_in_jd": 0,
-        "keyword_match_percentage": 0.0, "section_scores": {
-            "experience_and_projects": 0.0, "skills": 0.0,
-        }, "notes": ""
+        "similarity_score": 0.0,
+        "pass": False,
+        "keywords_missing": [],
+        "keywords_found_count": 0,
+        "total_keywords_in_jd": 0,
+        "keyword_match_percentage": 0.0,
+        "section_scores": {
+            "experience_and_projects": 0.0,
+            "skills": 0.0,
+        },
+        "justification": { # Added justification key
+            "skills": "",
+            "experience_and_projects": "",
+            "overall": "",
+        },
+        "notes": ""
     }
-    #print(job_description_dict)
+
     # --- 1. Skills Comparison ---
+    skills_justification_parts = [] # To build the justification string
+
     # Use preprocessed skills for cleaner comparison
     resume_skills_list = [preprocess_text(s) for s in resume_dict.get("skills", []) if isinstance(s, str) and s]
     resume_skills_set = set(resume_skills_list)
+    skills_justification_parts.append(f"Resume skills considered: {len(resume_skills_set)}")
 
     jd_req_skills_list = [preprocess_text(s) for s in job_description_dict.get("required_skills", []) if isinstance(s, str) and s]
     jd_pref_skills_list = [preprocess_text(s) for s in job_description_dict.get("preferred_skills", []) if isinstance(s, str) and s]
     jd_req_skills_set = set(jd_req_skills_list)
     jd_pref_skills_set = set(jd_pref_skills_list)
+    skills_justification_parts.append(f"JD required skills: {len(jd_req_skills_set)}, preferred skills: {len(jd_pref_skills_set)}")
+
 
     # Keyword matching based on required skills
     required_keywords_found = jd_req_skills_set.intersection(resume_skills_set)
     required_keywords_missing = jd_req_skills_set - resume_skills_set
+    preferred_keywords_found = jd_pref_skills_set.intersection(resume_skills_set) # Also find preferred matches
+
     results["keywords_found_count"] = len(required_keywords_found)
     results["total_keywords_in_jd"] = len(jd_req_skills_set)
     results["keywords_missing"] = sorted(list(required_keywords_missing))
+
+    skills_justification_parts.append(f"Required skills found ({len(required_keywords_found)}/{len(jd_req_skills_set)}): {sorted(list(required_keywords_found)) if required_keywords_found else 'None'}.")
+    skills_justification_parts.append(f"Required skills missing: {results['keywords_missing'] if results['keywords_missing'] else 'None'}.")
+    skills_justification_parts.append(f"Preferred skills found ({len(preferred_keywords_found)}/{len(jd_pref_skills_set)}): {sorted(list(preferred_keywords_found)) if preferred_keywords_found else 'None'}.")
+
+
     if results["total_keywords_in_jd"] > 0:
         results["keyword_match_percentage"] = round((results["keywords_found_count"] / results["total_keywords_in_jd"]) * 100, 2)
+        skills_justification_parts.append(f"Keyword match (required only): {results['keyword_match_percentage']}%.")
+    else:
+        results["keyword_match_percentage"] = 100.0 if not jd_req_skills_set else 0.0 # If no required skills, match is 100% or 0%? Let's assume 100% as nothing is required.
+        skills_justification_parts.append("No required keywords specified in JD.")
+
 
     # Calculate skills score (weighted overlap)
     req_overlap = len(required_keywords_found) / len(jd_req_skills_set) if jd_req_skills_set else 1.0
-    pref_overlap = len(jd_pref_skills_set.intersection(resume_skills_set)) / len(jd_pref_skills_set) if jd_pref_skills_set else 1.0
+    pref_overlap = len(preferred_keywords_found) / len(jd_pref_skills_set) if jd_pref_skills_set else 1.0 # Use found preferred skills here
     overlap_score = 0.7 * req_overlap + 0.3 * pref_overlap
     skills_final_score = overlap_score
     results["section_scores"]["skills"] = round(max(0.0, min(1.0, skills_final_score)) * 100, 2)
 
+    skills_justification_parts.append(f"Final Skills Score: {results['section_scores']['skills']}%.")
+    results["justification"]["skills"] = " ".join(skills_justification_parts)
+
+
     # --- 2. Work Experience and Projects Comparison ---
+    exp_proj_justification_parts = []
+
     # Concatenate relevant text from work experience and projects for semantic comparison
-    resume_exp_proj_text = ""
+    resume_exp_proj_text_parts = []
     for exp in resume_dict.get("work_experience", []):
         if isinstance(exp, dict):
+            title = exp.get('job_title', '')
             resp_text = "\n".join(exp.get("responsibilities", [])) if isinstance(exp.get("responsibilities"), list) else ""
-            resume_exp_proj_text += f"{exp.get('job_title', '')} {resp_text} "
+            resume_exp_proj_text_parts.append(f"{title} {resp_text}")
+    exp_proj_justification_parts.append(f"Compared {len(resume_exp_proj_text_parts)} work experience entries.")
 
+    project_text_parts = []
     for proj in resume_dict.get("projects", []):
         if isinstance(proj, dict):
-            resume_exp_proj_text += f"{proj.get('name', '')} {proj.get('description', '')} \n"
+            name = proj.get('name', '')
+            desc = proj.get('description', '')
+            project_text_parts.append(f"{name} {desc}")
+    exp_proj_justification_parts.append(f"Compared {len(project_text_parts)} project entries.")
 
-    jd_resp_text = " ".join(job_description_dict.get("key_responsibilities", [])) if isinstance(job_description_dict.get("key_responsibilities"), list) else ""
+    resume_exp_proj_text = " ".join(resume_exp_proj_text_parts + project_text_parts)
+
+    jd_resp_list = job_description_dict.get("key_responsibilities", [])
+    jd_resp_text = " ".join(jd_resp_list) if isinstance(jd_resp_list, list) else ""
     jd_title = job_description_dict.get("job_title", "") if isinstance(job_description_dict.get("job_title"), str) else ""
     jd_full_exp_text = f"{jd_title} {jd_resp_text}"
+    exp_proj_justification_parts.append(f"Compared against JD title '{jd_title}' and {len(jd_resp_list) if isinstance(jd_resp_list, list) else 0} key responsibilities.")
 
     experience_projects_semantic_score = calculate_similarity(resume_exp_proj_text, jd_full_exp_text, embed_model)
+
     # Potential Enhancement: Compare required_experience_years with calculated resume experience
     results["section_scores"]["experience_and_projects"] = round(max(0.0, min(1.0, experience_projects_semantic_score)) * 100, 2)
 
+    results["justification"]["experience_and_projects"] = " ".join(exp_proj_justification_parts)
+
+
     # --- 3. Calculate Final Weighted Score ---
+    overall_justification_parts = []
+
     # Determine if job is technical (based on extracted JD dict content)
     jd_skills_combined = jd_req_skills_set.union(jd_pref_skills_set)
     # Use job title from dict and skills overlap with seed list
     jd_title_lower = job_description_dict.get('job_title','').lower() if isinstance(job_description_dict.get('job_title'), str) else ""
     is_technical_job = any(skill in TECHNICAL_KEYWORDS_SEED for skill in jd_skills_combined) or \
-                       any(indicator in jd_title_lower for indicator in ['engineer', 'developer', 'programmer', 'scientist', 'technical'])
+                       any(indicator in jd_title_lower for indicator in ['engineer', 'developer', 'programmer', 'scientist', 'technical', 'analyst', 'architect']) # Added more indicators
+
+    overall_justification_parts.append(f"Job classified as technical: {is_technical_job}.")
 
     if is_technical_job:
-        weight_factors = [0.45, 0.55] # Work Exp, Projects, Skills
+        weight_factors = [0.45, 0.55] # Work Exp/Projects, Skills
+        overall_justification_parts.append("Using technical weights: Experience/Projects=45%, Skills=55%.")
     else:
-        weight_factors = [0.60, 0.40] # Work Exp, Projects, Skills
+        weight_factors = [0.60, 0.40] # Work Exp/Projects, Skills
+        overall_justification_parts.append("Using non-technical weights: Experience/Projects=60%, Skills=40%.")
 
-    # Ensure weights sum to approx 1 (handle potential floating point issues)
+    # Ensure weights sum to approx 1 (handle potential floating point issues) - This check is good practice but maybe not needed for justification string
     if not abs(sum(weight_factors) - 1.0) < 1e-6:
+        # This warning should ideally be logged, not put in justification
         print(f"Warning: Weights {weight_factors} do not sum to 1. Normalizing.")
         sum_weights = sum(weight_factors)
         if sum_weights > 0:
             weight_factors = [w / sum_weights for w in weight_factors]
-        else: # Handle zero sum case, maybe default to equal weights
+        else: # Handle zero sum case
             num_factors = len(weight_factors)
             weight_factors = [1.0 / num_factors] * num_factors if num_factors > 0 else []
 
 
+    exp_proj_score_norm = results["section_scores"]["experience_and_projects"] / 100.0
+    skills_score_norm = results["section_scores"]["skills"] / 100.0
+
     final_weighted_score = np.average(
-        [results["section_scores"]["experience_and_projects"] / 100.0,
-         results["section_scores"]["skills"] / 100.0],
+        [exp_proj_score_norm, skills_score_norm],
         weights=weight_factors
     )
+    overall_justification_parts.append(f"Weighted average score before bonus: {round(final_weighted_score * 100, 2)}%.")
+
 
     # Optional: Add small bonus based on required keyword match percentage
     keyword_bonus_factor = 0.15
-    bonus = final_weighted_score * keyword_bonus_factor * (results["keyword_match_percentage"] / 100.0)
+    keyword_match_norm = results["keyword_match_percentage"] / 100.0
+    bonus = final_weighted_score * keyword_bonus_factor * keyword_match_norm
     final_score_combined = final_weighted_score + bonus
+
+    overall_justification_parts.append(f"Keyword match bonus ({keyword_bonus_factor*100}% factor applied to weighted score * keyword match %): +{round(bonus * 100, 2)}%.")
 
     score_percent = round(max(0.0, min(1.0, final_score_combined)) * 100, 2)
     pass_threshold = 80.0 # Adjust as needed
 
     results["similarity_score"] = score_percent
     results["pass"] = score_percent >= pass_threshold
-    results["notes"] = f"Dict-Compare Score based on {EMBEDDING_MODEL_NAME}. Pass: {pass_threshold}%. Tech job: {is_technical_job}."
+    results["notes"] = f"Dict-Compare Score based on {EMBEDDING_MODEL_NAME}. Pass Threshold: {pass_threshold}%. Tech job: {is_technical_job}."
+    overall_justification_parts.append(f"Final Score (Weighted Avg + Bonus, capped at 100%): {results['similarity_score']}%. Pass: {results['pass']}.")
+    results["justification"]["overall"] = " ".join(overall_justification_parts)
 
     return results

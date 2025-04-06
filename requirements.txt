@@ -16,3 +16,8 @@ gunicorn
 language_tool_python
 python-Levenshtein
 thefuzz
+pinecone
+llama-index-embeddings-cohere
+llama-index-vector-stores-pinecone
+Celery
+redis

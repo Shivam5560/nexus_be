@@ -151,6 +151,13 @@ class PracticalResumeAnalyzer:
                     resp = desc.get('description', [])
                     if isinstance(resp, list):
                         all_bullets.extend([b for b in resp if isinstance(b, str) and b.strip()])
+        # if isinstance(projects, str):
+        #     for desc in projects:
+        #         if isinstance(desc, dict):
+        #             resp = desc.get('description', '')
+        #             if isinstance(resp, str):
+        #                 sentences = resp.split('.')
+        #                 all_bullets.extend(sentences)
 
         section_results = {}
         all_recommendations = []
@@ -165,8 +172,8 @@ class PracticalResumeAnalyzer:
             (self._analyze_sentence_structure, (all_bullets,), "sentence_structure"),
             (self.analyze_passive_voice, (sentences,), "active_voice"),
             (self._analyze_completeness, (resume_dict,), "completeness"),
-            (self._analyze_skills_format, (resume_dict.get('skills', []),), "skills_format"),
-            (self.analyze_industry_fit, (resume_text, resume_dict.get('skills', []), industry), "industry_fit"),
+            (self._analyze_skills_format, (resume_dict.get('keywords', []),), "skills_format"),
+            (self.analyze_industry_fit, (resume_text, resume_dict.get('keywords', []), industry), "industry_fit"),
         ]
 
         # --- Execute Analyses ---
@@ -409,7 +416,8 @@ class PracticalResumeAnalyzer:
         avg_bullet_length = np.mean(bullet_lengths) if bullet_lengths else 0
         verb_start_ratio = verb_start_count / len(all_bullets) if all_bullets else 0
 
-
+        # 
+        # print(all_bullets)
         # *** MODIFIED DETAILS ***
         details = {
             'total_bullets': len(all_bullets),
@@ -637,8 +645,8 @@ class PracticalResumeAnalyzer:
         """Analyzes section completeness, returns category, details, recommendations."""
         # (No specific text examples needed, details already include missing sections)
         # (Logic remains the same as previous version)
-        essential = {'personal_info', 'education', 'work_experience', 'skills'}
-        recommended = {'summary', 'projects', 'certifications', 'awards'}
+        essential = {'personal_info', 'education', 'work_experience', 'keywords'}
+        recommended = {'summary', 'projects', 'certifications',}
         details = {}
         recs = []
         # ... (logic for missing_essential, missing_recommended, present_recommended_count) ...

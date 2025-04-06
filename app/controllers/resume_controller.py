@@ -11,11 +11,10 @@ from app.services.file_service import (
 )
 from app.utils.resume_template import TEMPLATE
 from app.utils.jd_template import JD_TEMPLATE
-from app.utils.text_util import advanced_ats_similarity, get_embed_model
+from app.utils.text_util import advanced_ats_similarity
 import numpy as np
 
 analyzer = PracticalResumeAnalyzer()
-embedding_model = get_embed_model()
 
 
 def upload_file():
@@ -62,7 +61,7 @@ def analyze_resume():
     print(abs_resume_path)
     try:
         query_engine, documents = generate_query_engine(
-            abs_resume_path, embedding_model
+            abs_resume_path,
         )
         if not query_engine or not documents:
             return jsonify({"error": "Failed to process documents"}), 500
@@ -70,14 +69,20 @@ def analyze_resume():
         resume_str = ""
         for doc in documents:
             resume_str += doc.text_resource.text
-
-        TEMPLATE
+        print("resume_str tk chal raha hai")
+        
         current_template = TEMPLATE.replace("[Insert resume text here]", resume_str)
 
         response = query_engine.query(current_template).response
+        print("Response v aa raha hai ")
         response = response[7 : len(response) - 3]
-
+        print("Working Fine upto here")
+        with open('response.txt','w') as file:
+            file.write(response)
+        # with open('text_res2.txt','w') as file:
+        #     file.write(str(response))
         resume_dict = json.loads(response)
+        
         #print(resume_dict)
         
        
@@ -90,7 +95,7 @@ def analyze_resume():
                 file.write(job_description)
             file_path2 = 'jd.txt'
             query_engine2, documents2 = generate_query_engine(
-            file_path2, embedding_model
+            file_path2,
             )
             if not query_engine2 or not documents2:
                 return jsonify({"error": "Failed to process documents"}), 500

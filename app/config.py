@@ -20,7 +20,9 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     HF_KEY = os.getenv("HF_KEY")
-
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+    
 
 class DevelopmentConfig(Config):
     """Development configuration."""

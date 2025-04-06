@@ -59,7 +59,7 @@ def analyze_resume():
 
     resume_path = user_data.file_path
     abs_resume_path = get_abs_path(resume_path)
-    logging.info(f"Absolute resume path: {abs_resume_path}")
+    print(abs_resume_path)
     try:
         query_engine, documents = generate_query_engine(
             abs_resume_path, embedding_model

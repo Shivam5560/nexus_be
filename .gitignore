@@ -171,7 +171,16 @@ cython_debug/
 .pypirc
 .idea
 
-uploads
-./app/storage_mini
+# Ignore all files in the uploads folder
+uploads/*
+
+# Do not ignore the uploads folder itself
+!uploads/
+
+# Ignore all files in the uploads/resumes folder
+uploads/resumes/*
+
+# Do not ignore the resumes folder itself
+!uploads/resumes/
 
 myenv

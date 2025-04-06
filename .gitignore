@@ -171,7 +171,8 @@ cython_debug/
 .pypirc
 .idea
 
-uploads
+uploads/resumes/*
+!uploads/resumes/.gitkeep
 ./app/storage_mini
 
 myenv

@@ -40,7 +40,7 @@ def get_all_resumes(user_id):
         "list": [resume.to_json() for resume in resumes],
     }
 
-    return jsonify(response_date), 200
+    return jsonify(response_data), 200
 
 def analyze_resume():
     data = request.json

@@ -3,7 +3,12 @@ from flask import request, jsonify, current_app
 import re
 from app.services.query_service import generate_query_engine
 from app.services.resume_analyzer_service import PracticalResumeAnalyzer
-from app.services.file_service import save_file, get_resume_by_user_id, get_abs_path, get_all_resumes_by_user_id
+from app.services.file_service import (
+    save_file,
+    get_resume_by_user_id,
+    get_abs_path,
+    get_all_resumes_by_user_id,
+)
 from app.utils.resume_template import TEMPLATE
 from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity, get_embed_model
@@ -22,23 +27,20 @@ def upload_file():
     if not user_id:
         return jsonify({"error": "User ID is required"}), 400
 
-    response, status_code = save_file(file=file,user_id=user_id)
+    response, status_code = save_file(file=file, user_id=user_id)
     return jsonify(response), status_code
 
-def get_all_resumes():
-    user_id = request.json.get("user_id")
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
+
+def get_all_resumes(user_id):
     resumes = get_all_resumes_by_user_id(user_id)
     if not resumes:
         return jsonify({"error": "No resumes found for this user"}), 404
-    response_date = {
+    response_data = {
         "count": len(resumes),
         "list": [resume.to_json() for resume in resumes],
     }
+
     return jsonify(response_date), 200
-  
-  
 
 def analyze_resume():
     data = request.json

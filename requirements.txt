@@ -21,3 +21,4 @@ llama-index-embeddings-cohere
 llama-index-vector-stores-pinecone
 Celery
 redis
+llama-index-postprocessor-cohere-rerank

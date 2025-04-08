@@ -13,8 +13,17 @@ from app.utils.resume_template import TEMPLATE
 from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity
 import numpy as np
+import traceback
 
 analyzer = PracticalResumeAnalyzer()
+
+def clean_text(s):
+    start_index = s.index('```json')+7
+    end_index = s.rindex('```')
+    
+    cleaned = s[start_index:end_index]
+    return cleaned
+    
 
 
 def upload_file():
@@ -38,7 +47,7 @@ def get_all_resumes(user_id):
         "count": len(resumes),
         "list": [resume.to_json() for resume in resumes],
     }
-    return jsonify(response_date), 200
+    return jsonify(response_data), 200
 
 def analyze_resume():
     data = request.json
@@ -58,44 +67,29 @@ def analyze_resume():
 
     resume_path = user_data.file_path
     abs_resume_path = get_abs_path(resume_path)
-    print(abs_resume_path)
     try:
-        query_engine, documents = generate_query_engine(
-            abs_resume_path,
-        )
+        query_engine, documents =  generate_query_engine(abs_resume_path,read_from_text=False)
         if not query_engine or not documents:
             return jsonify({"error": "Failed to process documents"}), 500
 
         resume_str = ""
         for doc in documents:
             resume_str += doc.text_resource.text
-        print("resume_str tk chal raha hai")
         
-        current_template = TEMPLATE.replace("[Insert resume text here]", resume_str)
+        current_template = TEMPLATE.replace("[Insert resume text here]", "")
 
-        response = query_engine.query(current_template).response
-        print("Response v aa raha hai ")
-        response = response[7 : len(response) - 3]
-        print("Working Fine upto here")
-        with open('response.txt','w') as file:
-            file.write(response)
-        # with open('text_res2.txt','w') as file:
-        #     file.write(str(response))
+        response =  query_engine.query(current_template).response
+        # with open('res.txt','w') as f:
+        #     f.write(response)
+        response = clean_text(response)
         resume_dict = json.loads(response)
         
-        #print(resume_dict)
-        
-       
 
         # 3. Process Job Description String into Dictionary
         job_description_dict = None
         try:
-            
-            with open('jd.txt','w') as file:
-                file.write(job_description)
-            file_path2 = 'jd.txt'
             query_engine2, documents2 = generate_query_engine(
-            file_path2,
+            job_description,read_from_text=True
             )
             if not query_engine2 or not documents2:
                 return jsonify({"error": "Failed to process documents"}), 500
@@ -104,12 +98,9 @@ def analyze_resume():
             for doc in documents2:
                 jd_str += doc.text_resource.text
           
-            jd_prompt = JD_TEMPLATE.replace("[Insert job description text here]", jd_str)
-            jd_llm_response_str = query_engine.query(jd_prompt).response
-            #with open('test.txt','w') as file:
-            #    file.write(str(jd_llm_response_str))
-            jd_llm_response_str = jd_llm_response_str[7 : len(jd_llm_response_str) - 3]
-
+            jd_prompt = JD_TEMPLATE.replace("[Insert job description text here]", "")
+            jd_llm_response_str =  query_engine.query(jd_prompt).response
+            jd_llm_response_str = clean_text(jd_llm_response_str)
             job_description_dict = json.loads(jd_llm_response_str)
 
         except Exception as e:
@@ -133,7 +124,7 @@ def analyze_resume():
             return new_data
 
 
-        technical = advanced_ats_similarity(resume_dict, job_description_dict)
+        technical =  advanced_ats_similarity(resume_dict, job_description_dict)
         # Analyze a resume
         technical = convert_to_normal_types(technical)
         grammar_score, recommendations, section_scores,justifications = analyzer.analyze_resume(
@@ -155,10 +146,6 @@ def analyze_resume():
             "justifications":justifications,
             "resume_data": dict(resume_dict),
         }
-        #print(analysis_results['grammar_analysis']['score'])
-        #print(analysis_results['grammar_analysis']['section_scores'])
-        #print(analysis_results['justifications'])
-        #print(analysis_results)
         return jsonify(analysis_results), 200
 
     except json.JSONDecodeError as e:
@@ -171,4 +158,6 @@ def analyze_resume():
             400,
         )
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+

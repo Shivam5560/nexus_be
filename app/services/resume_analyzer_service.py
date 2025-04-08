@@ -35,7 +35,6 @@ class PracticalResumeAnalyzer:
         self.all_action_verbs = self._compile_action_verbs(self.action_verbs_data) # Compiled dict
         self.industry_skills = self._load_industry_skills(industry_skills_path)
         self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-        self.grammar_tool = self._load_grammar_tool()
 
         # Define weights (these remain crucial)
         self.weights = {

@@ -4,6 +4,7 @@ from llama_index.core import (
     VectorStoreIndex,
     Settings,
     StorageContext,
+    Document
 )
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.llms.groq import Groq
@@ -11,23 +12,27 @@ from flask import current_app
 import pinecone
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.embeddings.cohere import CohereEmbedding
+from llama_index.postprocessor.cohere_rerank import CohereRerank
+from llama_index.core.query_engine import RetrieverQueryEngine
 
-
-def generate_query_engine(file_paths):
+def generate_query_engine(file_paths,read_from_text=False):
     try:
+        documents = None
         if not file_paths:
             print("No file paths provided.")
             return None, None
+        if not read_from_text:
+            reader = SimpleDirectoryReader(input_files=[file_paths])
+            documents = reader.load_data()
+        else:
+            documents = [Document(text=file_paths)]
 
-        reader = SimpleDirectoryReader(input_files=[file_paths])
-        documents = reader.load_data()
-
-        text_splitter = SentenceSplitter(chunk_size=512, chunk_overlap=100)
-        nodes = text_splitter.get_nodes_from_documents(documents, show_progress=True)
+        text_splitter = SentenceSplitter(chunk_size=512,chunk_overlap=100)
+        nodes = text_splitter.get_nodes_from_documents(documents)
 
         key = current_app.config.get("GROQ_API_KEY")
         llm = Groq(
-            model="qwen-2.5-32b", api_key=key, response_format={"type": "json_object"}
+            model="meta-llama/llama-4-scout-17b-16e-instruct", api_key=key, response_format={"type": "json_object"},temperature=0.1,
         )
         
         cohere_api_key = current_app.config.get("COHERE_API_KEY")
@@ -50,14 +55,22 @@ def generate_query_engine(file_paths):
         index = VectorStoreIndex(
         nodes=nodes, # Pass nodes directly
         storage_context=storage_context,
-        show_progress=True
+        show_progress=True,
         )
 
-        chat_engine = index.as_query_engine(
-            similarity_top_k=2, response_mode="tree_summarize"
+        # Setup retriever
+        retriever = index.as_retriever(similarity_top_k=50)
+
+        cohere_rerank = CohereRerank(api_key=cohere_api_key, top_n=30)
+        # Final Query Engine with reranker and retriever
+        query_engine = RetrieverQueryEngine.from_args(
+            retriever=retriever,
+            rerank=cohere_rerank,
+            llm=llm
         )
 
-        return chat_engine, documents
+        return query_engine, documents
+
 
     except Exception as e:
         print(f"An error occurred in generate_query_engine: {e}")

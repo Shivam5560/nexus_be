@@ -8,6 +8,7 @@ from app.services.file_service import (
     get_resume_by_user_id,
     get_abs_path,
     get_all_resumes_by_user_id,
+    get_resume_by_id,
 )
 from app.utils.resume_template import TEMPLATE
 from app.utils.jd_template import JD_TEMPLATE
@@ -62,7 +63,7 @@ def analyze_resume():
     user_id = data["user_id"]
     job_description = data["job_description"]
     resume_id = data["resume_id"]
-    user_data = get_resume_by_user_id(user_id)
+    user_data = get_resume_by_id(user_id,resume_id)
     if not user_data:
         return jsonify({"error": "Resume not found for this user"}), 404
 

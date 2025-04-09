@@ -61,6 +61,7 @@ def analyze_resume():
 
     user_id = data["user_id"]
     job_description = data["job_description"]
+    resume_id = data["resume_id"]
     user_data = get_resume_by_user_id(user_id)
     if not user_data:
         return jsonify({"error": "Resume not found for this user"}), 404

@@ -27,7 +27,7 @@ def generate_query_engine(file_paths,read_from_text=False):
         else:
             documents = [Document(text=file_paths)]
 
-        text_splitter = SentenceSplitter(chunk_size=512,chunk_overlap=100)
+        text_splitter = SentenceSplitter(chunk_size=1024,chunk_overlap=100)
         nodes = text_splitter.get_nodes_from_documents(documents)
 
         key = current_app.config.get("GROQ_API_KEY")

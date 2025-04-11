@@ -15,8 +15,9 @@ from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity
 import numpy as np
 import traceback
+import asyncio
 
-analyzer = PracticalResumeAnalyzer()
+
 
 def clean_text(s):
     start_index = s.index('```json')+7
@@ -51,6 +52,7 @@ def get_all_resumes(user_id):
     return jsonify(response_data), 200
 
 def analyze_resume():
+    analyzer = PracticalResumeAnalyzer()
     data = request.json
     if not data or "user_id" not in data or "job_description" not in data:
         return (
@@ -74,15 +76,17 @@ def analyze_resume():
         if not query_engine or not documents:
             return jsonify({"error": "Failed to process documents"}), 500
 
+        #print("Resume string started")
         resume_str = ""
         for doc in documents:
             resume_str += doc.text_resource.text
+        #print("Resume string closed")
         
-        current_template = TEMPLATE.replace("[Insert resume text here]", "")
-
-        response =  query_engine.query(current_template).response
+        #print("Resume Query Started")
+        response =  query_engine.query(TEMPLATE).response
         # with open('res.txt','w') as f:
         #     f.write(response)
+        #print("Resume Query Stopped")
         response = clean_text(response)
         resume_dict = json.loads(response)
         
@@ -95,15 +99,17 @@ def analyze_resume():
             )
             if not query_engine2 or not documents2:
                 return jsonify({"error": "Failed to process documents"}), 500
-
+            #print('Jd Started')
             jd_str = ""
             for doc in documents2:
                 jd_str += doc.text_resource.text
+            #print("Jd Stopped Text")
           
-            jd_prompt = JD_TEMPLATE.replace("[Insert job description text here]", "")
-            jd_llm_response_str =  query_engine.query(jd_prompt).response
+            #print("JD Query")
+            jd_llm_response_str =   query_engine.query(JD_TEMPLATE).response
             jd_llm_response_str = clean_text(jd_llm_response_str)
             job_description_dict = json.loads(jd_llm_response_str)
+            #print("JD Query Stopped")
 
         except Exception as e:
             print(f"Error processing job description into dictionary: {e}")
@@ -125,14 +131,16 @@ def analyze_resume():
                     new_data[key] = value
             return new_data
 
-
+        #print("Starting Technical Analysis")
         technical =  advanced_ats_similarity(resume_dict, job_description_dict)
         # Analyze a resume
+        #print("Completed Technical Analysis")
         technical = convert_to_normal_types(technical)
+        #print("Starting grammar analysis")
         grammar_score, recommendations, section_scores,justifications = analyzer.analyze_resume(
             resume_str, resume_dict, industry="tech"
         )
-
+        #print("Completed grammar analysis")
         overall_score = (
             technical["similarity_score"] * 0.6 + grammar_score * 0.4
         )

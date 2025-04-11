@@ -5,7 +5,7 @@ from app.services.query_service import generate_query_engine
 from app.services.resume_analyzer_service import PracticalResumeAnalyzer
 from app.services.file_service import (
     save_file,
-    get_resume_by_user_id,
+    # get_resume_by_user_id,
     get_abs_path,
     get_all_resumes_by_user_id,
     get_resume_by_id,

@@ -14,7 +14,8 @@ This parser leverages a Retrieval-Augmented Generation (RAG) pipeline, where res
     * **Keywords**: Collect all unique technical and professional keywords found throughout the **Work Experience**, **Projects**, and **Skills** sections. Keywords include tools, technologies, programming languages, platforms, libraries, frameworks, databases, software, methodologies, processes, and technical concepts. Do not limit extraction to just the Skills section—also analyze job responsibilities and project descriptions for relevant terms. Avoid duplicates and general words like "team" or "project".
     * **Projects**: Project name and description (multi-line or bullet points).
     * **Certifications**: Certification name and description (if available).
-    * **Summary**: A comprehensive professional summary paragraph (minimum 120 words) synthesising the candidate's profile, experience, and key skills, based exclusively on the 'Work Experience' and 'Projects' and 'Skills' sections . This summary must not miss any details of work experience details and projects key descriptions along with skills found within those sections; 
+    * **Summary**: A comprehensive technical summary (~150 words) generated solely from the Required Skills, Key Responsibilities, and Other Qualifications. Focus on tools, systems, methodologies, and technical expectations. Exclude any mention of job title, company name, or location.
+    * **Key Responsibilities**: Extract these as a **list** of short, atomic, and technical statements. Each item should reflect a specific responsibility (e.g., "Develop ETL workflows in Airflow", "Manage containerized services using Docker and Kubernetes","Conduct data analysis and pre-processing","Assist in the design, development, and deployment of AI models and algorithms",..).
 
 3.  **Structure the Output** Organize the extracted information into the following JSON dictionary format:
 
@@ -55,7 +56,8 @@ This parser leverages a Retrieval-Augmented Generation (RAG) pipeline, where res
       "description": []
     }
   ]
-  "summary":""
+  "summary":"",
+  "key_responsibilites':[]
 }
 
 4. Fill in the dictionary with the extracted information and in correct order also from the resume by cross-checking with their headers and the extracted value.

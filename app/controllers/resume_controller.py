@@ -146,7 +146,10 @@ def analyze_resume():
                 else:
                     new_data[key] = value
             return new_data
-
+        # with open("resume.json", "w") as file:
+        #     json.dump(resume_dict, file, indent=4)
+        # with open("jd.json", "w") as file:
+        #     json.dump(job_description_dict, file, indent=4)
         #print("Starting Technical Analysis")
         technical =  advanced_ats_similarity(resume_dict, job_description_dict)
         # Analyze a resume
@@ -154,11 +157,11 @@ def analyze_resume():
         technical = convert_to_normal_types(technical)
         #print("Starting grammar analysis")
         grammar_score, recommendations, section_scores,justifications = analyzer.analyze_resume(
-            resume_str, resume_dict, industry="tech"
+            resume_str, resume_dict, industry=job_description_dict['industry']
         )
         #print("Completed grammar analysis")
         overall_score = (
-            technical["similarity_score"] * 0.6 + grammar_score * 0.4
+            technical["similarity_score"] * 0.55 + grammar_score * 0.45
         )
         print("Overall_Score", overall_score)
         analysis_results = {

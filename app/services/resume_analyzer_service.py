@@ -1190,7 +1190,7 @@ class PracticalResumeAnalyzer:
         return category, details, recs
 
     def _analyze_sentence_structure(self, all_bullets):
-        """Analyzes sentence structure within bullet points, returns category, details, recommendations."""
+        """Analyzes sentence structure within bullet points using word count, returns category, details, recommendations."""
         details = {'long_sentence_examples': [], 'short_sentence_examples': []}
         recs = []
         sentences_from_bullets = []
@@ -1208,68 +1208,71 @@ class PracticalResumeAnalyzer:
         if not sentences_from_bullets:
             return "Low", {'issue': 'No complete sentences found in bullet points'}, ["Review bullet points to ensure they form complete sentences where appropriate."]
 
-        sentence_lengths_tokens = []
-        sentence_texts = [] # Store original text for examples
+        sentence_lengths_words = []
+        sentence_texts = []  # Store original text for examples
+
         for sentence in sentences_from_bullets:
             text = sentence.strip()
-            if not text: continue
-            #print(text,len(self.nlp(text)))
+            if not text:
+                continue
             sentence_texts.append(text)
-            sentence_lengths_tokens.append(len(self.nlp(text))) # Use token count
+            # Count words by splitting on whitespace (simple but effective for this purpose)
+            word_count = len(text.split())
+            sentence_lengths_words.append(word_count)
 
-        if not sentence_lengths_tokens:
+        if not sentence_lengths_words:
             return "Low", {'issue': 'No valid sentences extracted from bullets'}, ["Ensure bullet points contain valid sentences for analysis."]
 
-        avg_len = np.mean(sentence_lengths_tokens)
-        std_dev_len = np.std(sentence_lengths_tokens)
+        avg_len = np.mean(sentence_lengths_words)
+        std_dev_len = np.std(sentence_lengths_words)
         long_sentences_count = 0
         short_sentences_count = 0
 
         # Collect examples while counting
-        for i, length in enumerate(sentence_lengths_tokens):
+        for i, length in enumerate(sentence_lengths_words):
             text_example = sentence_texts[i][:80] + ("..." if len(sentence_texts[i]) > 80 else "")
-            if length > 35:
+            
+            # Adjusted thresholds for word count (instead of tokens)
+            if length > 30:  # Long sentence threshold in words
                 long_sentences_count += 1
                 if len(details['long_sentence_examples']) < 2:
-                    details['long_sentence_examples'].append(f"\"{text_example}\" ({length} tokens)")
-            if length < 8:
+                    details['long_sentence_examples'].append(f"\"{text_example}\" ({length} words)")
+            
+            if length < 5:  # Short sentence threshold in words
                 short_sentences_count += 1
                 if len(details['short_sentence_examples']) < 2:
-                    details['short_sentence_examples'].append(f"\"{text_example}\" ({length} tokens)")
+                    details['short_sentence_examples'].append(f"\"{text_example}\" ({length} words)")
 
         details.update({
             'sentence_count': len(sentences_from_bullets),
-            'avg_sentence_length_tokens': round(avg_len, 1),
+            'avg_sentence_length_words': round(avg_len, 1),
             'std_dev_sentence_length': round(std_dev_len, 1),
-            'long_sentence_count (>40 tokens)': long_sentences_count,
-            'short_sentence_count (<8 tokens)': short_sentences_count
-            # Examples added above
+            'long_sentence_count (>30 words)': long_sentences_count,
+            'short_sentence_count (<5 words)': short_sentences_count,
         })
 
         # Determine category and recommendations
-        score_0_to_1 = 0.85
+        score_0_to_1 = 1
         sentence_count = len(sentences_from_bullets)
         long_ratio = long_sentences_count / sentence_count if sentence_count else 0
         short_ratio = short_sentences_count / sentence_count if sentence_count else 0
-
-        if long_ratio > 0.2 or avg_len > 25:
+        if long_ratio > 0.2 or avg_len > 20:  # Adjusted thresholds for words
             score_0_to_1 -= 0.3
             recs.append("Consider breaking down long bullet points into shorter, more digestible sentences.")
             if details['long_sentence_examples']:
                 recs.append(f"Examples of long sentences: {', '.join(details['long_sentence_examples'])}")
 
-        if short_ratio > 0.5 and avg_len < 12:
+        if short_ratio > 0.5 and avg_len < 10:  # Adjusted thresholds for words
             score_0_to_1 -= 0.3
             recs.append("Ensure bullet points are sufficiently detailed. Some appear to be very short and might lack impact.")
             if details['short_sentence_examples']:
                 recs.append(f"Examples of short sentences: {', '.join(details['short_sentence_examples'])}")
 
-        if std_dev_len < 3 and 10 < avg_len < 22:
+        if std_dev_len < 3 and 8 < avg_len < 18:  # Adjusted thresholds for words
             score_0_to_1 -= 0.1
             recs.append("Sentence length variation is good. Maintain a mix of sentence lengths for readability.")
         elif std_dev_len > 7:
             recs.append("Consider varying sentence lengths more to improve rhythm and engagement.")
-
         final_score_0_to_1 = max(0, min(1, score_0_to_1))
         category = self._get_category_from_score(final_score_0_to_1)
 
@@ -1380,9 +1383,8 @@ class PracticalResumeAnalyzer:
         }
 
         # ... (Determine category and recs - same logic as before) ...
-        score_0_to_1 = 0.8
+        score_0_to_1 = 0.9
         if num_skills < 5: score_0_to_1 = 0.4
-        elif num_skills > 45: score_0_to_1 -= 0.1
         if len(long_skills_examples) / max(1, num_skills) > 0.2: score_0_to_1 = max(0.2, score_0_to_1 - 0.4)
         if categorized_heuristically and num_skills > 10 : score_0_to_1 = min(1.0, score_0_to_1 + 0.1)
         category = self._get_category_from_score(score_0_to_1)
@@ -1464,7 +1466,10 @@ class PracticalResumeAnalyzer:
 
         # **Apply Absolute Threshold Boost**
         # If absolute matches are high, boost the category if it's currently low/medium
-        if absolute_matches >= ABSOLUTE_MATCH_THRESHOLD_HIGH and category in ["Medium", "Low", "Very Low"]:
+        if absolute_matches >= 40:
+            category = "Very High"
+            details['boost_reason'] = f"Boosted to High based on absolute match count ({absolute_matches})"
+        elif absolute_matches >= ABSOLUTE_MATCH_THRESHOLD_HIGH and category in ["Medium", "Low", "Very Low"]:
             category = "High"
             details['boost_reason'] = f"Boosted to High based on absolute match count ({absolute_matches})"
         elif absolute_matches >= ABSOLUTE_MATCH_THRESHOLD_MEDIUM and category in ["Low", "Very Low"]:

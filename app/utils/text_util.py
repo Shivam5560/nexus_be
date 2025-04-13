@@ -288,7 +288,12 @@ def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: D
     # --- 3. Calculate Final Weighted Score (Logic Unchanged, uses the new score from Section 2) ---
     overall_justification_parts = []
     jd_skills_combined_set = set(unique_jd_req_skills)
-    jd_title_lower = job_description_dict.get('job_title','').lower()
+    jd_title_lower = job_description_dict.get('job_title','')
+    print("Jd_tile_lower prev = ",jd_title_lower)
+    if jd_title_lower!='' or jd_title_lower!='None' or jd_title_lower is not None or jd_title_lower!='null':
+        jd_title_lower = jd_title_lower.lower()
+    print("Jd_tile_lower after = ",jd_title_lower)
+
     # Determine if technical based on keywords in JD title or combined skills
     is_technical_job = any(skill in TECHNICAL_KEYWORDS_SEED for skill in jd_skills_combined_set) or \
                     any(indicator in jd_title_lower for indicator in ['engineer', 'developer', 'programmer', 'scientist', 'technical', 'analyst', 'architect', 'data', 'software'])

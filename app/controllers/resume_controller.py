@@ -15,13 +15,18 @@ from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity
 import numpy as np
 import traceback
-import asyncio
+import random
+import string
 
 
 
 def clean_text(s):
-    start_index = s.index('```json')+7
-    end_index = s.rindex('```')
+    if '```json' in s:
+        start_index = s.index('```json')+7
+        end_index = s.rindex('```')
+    else:
+        start_index = 0
+        end_index = len(s)
     
     cleaned = s[start_index:end_index]
     return cleaned
@@ -72,7 +77,7 @@ def analyze_resume():
     resume_path = user_data.file_path
     abs_resume_path = get_abs_path(resume_path)
     try:
-        query_engine, documents =  generate_query_engine(abs_resume_path,read_from_text=False)
+        query_engine, documents =  generate_query_engine(abs_resume_path,resume_id,read_from_text=False)
         if not query_engine or not documents:
             return jsonify({"error": "Failed to process documents"}), 500
 
@@ -83,37 +88,48 @@ def analyze_resume():
         #print("Resume string closed")
         
         #print("Resume Query Started")
-        response =  query_engine.query(TEMPLATE).response
+        response =  query_engine.query(TEMPLATE)
         # with open('res.txt','w') as f:
-        #     f.write(response)
+        #     # print(response.source_nodes)
+        #     f.write('\n'*3+response.response)
+        response = response.response
         #print("Resume Query Stopped")
+
         response = clean_text(response)
         resume_dict = json.loads(response)
         
 
         # 3. Process Job Description String into Dictionary
         job_description_dict = None
+        jd_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
         try:
-            query_engine2, documents2 = generate_query_engine(
-            job_description,read_from_text=True
+            llm_instance, _ = generate_query_engine(
+            job_description,jd_id,read_from_text=True,jd=True
             )
-            if not query_engine2 or not documents2:
-                return jsonify({"error": "Failed to process documents"}), 500
-            #print('Jd Started')
-            jd_str = ""
-            for doc in documents2:
-                jd_str += doc.text_resource.text
-            #print("Jd Stopped Text")
-          
+            if not llm_instance:
+                return jsonify({"error": "Failed to generate LLM instance"}), 500
+
+            llm_prompt = f"""
+            Please analyze the following job description and extract the requested information in JSON format. Follow the specific JSON schema provided in the instructions.
+
+            Job Description Text:
+            ---
+            {job_description}
+            ---
+
+            Instructions for JSON Output format (Ensure output is ONLY the valid JSON object):
+            {JD_TEMPLATE}
+
+            JSON Output:
+            """
             #print("JD Query")
-            jd_llm_response_str =   query_engine.query(JD_TEMPLATE).response
-            jd_llm_response_str = clean_text(jd_llm_response_str)
-            job_description_dict = json.loads(jd_llm_response_str)
-            #print("JD Query Stopped")
+            jd_llm_response_str =   llm_instance.complete(llm_prompt).text
+            # with open('jd_res.txt','w') as file:
+            #     file.write(jd_llm_response_str)
+            job_description_dict = json.loads(clean_text(jd_llm_response_str))
 
         except Exception as e:
             print(f"Error processing job description into dictionary: {e}")
-            import traceback
             traceback.print_exc()
             return jsonify({"error": f"Failed to process job description: {e}"}), 500
         
@@ -159,6 +175,7 @@ def analyze_resume():
         return jsonify(analysis_results), 200
 
     except json.JSONDecodeError as e:
+        traceback.print_exc()
         return (
             jsonify(
                 {

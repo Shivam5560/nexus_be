@@ -89,9 +89,6 @@ def analyze_resume():
         
         #print("Resume Query Started")
         response =  query_engine.query(TEMPLATE)
-        # with open('res.txt','w') as f:
-        #     # print(response.source_nodes)
-        #     f.write('\n'*3+response.response)
         response = response.response
         #print("Resume Query Stopped")
 
@@ -103,30 +100,16 @@ def analyze_resume():
         job_description_dict = None
         jd_id = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
         try:
-            llm_instance, _ = generate_query_engine(
+            query_engine_jd, documents_jd = generate_query_engine(
             job_description,jd_id,read_from_text=True,jd=True
             )
-            if not llm_instance:
-                return jsonify({"error": "Failed to generate LLM instance"}), 500
+            if not query_engine_jd or not documents_jd:
+                return jsonify({"error": "Failed to process documents"}), 500
 
-            llm_prompt = f"""
-            Please analyze the following job description and extract the requested information in JSON format. Follow the specific JSON schema provided in the instructions.
-
-            Job Description Text:
-            ---
-            {job_description}
-            ---
-
-            Instructions for JSON Output format (Ensure output is ONLY the valid JSON object):
-            {JD_TEMPLATE}
-
-            JSON Output:
-            """
-            #print("JD Query")
-            jd_llm_response_str =   llm_instance.complete(llm_prompt).text
-            # with open('jd_res.txt','w') as file:
-            #     file.write(jd_llm_response_str)
-            job_description_dict = json.loads(clean_text(jd_llm_response_str))
+            response_jd = query_engine_jd.query(JD_TEMPLATE)
+            response_jd = response_jd.response
+            response_jd = clean_text(response_jd)
+            job_description_dict = json.loads(response_jd)
 
         except Exception as e:
             print(f"Error processing job description into dictionary: {e}")

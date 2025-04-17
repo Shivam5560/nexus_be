@@ -1,5 +1,5 @@
 JD_TEMPLATE = """
-This parser is designed to extract structured information from a plain job description text using LLM inference only — no retrieval or external database involved.
+Given a plain text job description and a set of retrieved documents (such as company profiles, role-specific guidelines, industry standards, or job title databases), extract structured information with high accuracy and completeness. Use the retrieved context to resolve ambiguities, enrich missing details, and validate assumptions.
 ---
 
 ### **Instructions**

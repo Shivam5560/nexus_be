@@ -1,38 +1,77 @@
 JD_TEMPLATE = """
-Given a plain text job description and a set of retrieved documents (such as company profiles, role-specific guidelines, industry standards, or job title databases), extract structured information with high accuracy and completeness. Use the retrieved context to resolve ambiguities, enrich missing details, and validate assumptions.
----
+Given a plain text job description (JD) and optional context documents, extract structured information with maximum accuracy. Follow these rules strictly:
 
-### **Instructions**
+1. **Literal Extraction Only**  
+   - Use ONLY explicitly stated information from the JD  
+   - Never infer/imply missing details (return `""` or `[]` for unspecified fields)  
+   - Use context docs ONLY for:  
+     * Acronym expansion ("AWS" → "Amazon Web Services")  
+     * Term standardization ("Javascript" → "JavaScript")  
+     * Location disambiguation ("NY" → "New York")  
 
-1. **Read the Job Description Carefully**  
-   Analyze the provided job description content thoroughly and extract all relevant details using accurate phrasing and concise keywords.
+2. **Field-Specific Rules**  
+   - **Job Title**: Exact role name, normalize case ("senior data ENGINEER" → "Senior Data Engineer")  
+   - **Company Name**: Full legal name if available ("Microsoft" → "Microsoft Corporation")  
+   - **Location**: Format as `"[City, State/Country] | [Work Model]"` ("Remote in US" → "United States | Remote")  
+   * **Required Skills**:
+     - Extract ALL technical competencies with strict normalization:
+       ```python
+       {
+         "required_skills": [
+           # Base terms only (2-3 words max)
+           "Python",  # Not "Python programming skills"
+           "PyTorch", 
+           "TensorFlow",
+           # Expanded acronyms
+           "Google Cloud Vertex AI",  # From "GCP Vertex AI"
+           "Amazon Web Services",  # From "AWS"
+           # Split compound terms
+           "Spark",  # From "Distributed computing (Spark, Dask)"
+           "Dask",
+           # Individual practices
+           "Unit testing",  # From "Software engineering best practices (unit testing, CI/CD)"
+           "CI/CD"
+         ]
+       }
+       ```
+     - Normalization Rules:
+       1. **Phrase Cleaning**:
+          - Remove proficiency indicators ("Expertise in", "Knowledge of")
+          - Keep only tool/technology names
+       2. **Special Cases**:
+          - Slash-separated: "Docker/K8s" → ["Docker", "Kubernetes"]
+          - Parentheticals: "Cloud (AWS, GCP)" → ["AWS", "Google Cloud"]
+          - Version numbers: "Python 3.8" → "Python"
+       3. **Exclusions**:
+          - Generic terms: "Team player", "Problem solving"
+          - Non-technical verbs: "Develop", "Implement"
+   - **Experience**: Extract ONLY numerals ("5+ years" → "5", "Minimum 3 yrs" → "3")  
+   - **Key Responsibilities**:  
+     * Split compound items ("Design APIs and DBs" → ["Design REST APIs", "Optimize SQL databases"])  
+     * Remove fluff ("Collaborate with teams" → SKIP)  
+     * Keep technical ("Implement CI/CD pipelines")  
+   - **Industry**: Auto-detect using keywords:  
+      * any one in ("tech","finance","healthcare","marketing") based on summary of the overall responsibility.
+      * Default: `"tech"`  
 
-2. **Extract the Following Information**  
-   Use only the content provided in the job description. Do not infer, guess, or hallucinate information. If a field is not explicitly stated, return an empty string `""` or an empty list `[]` as appropriate.
+3. **Summary Generation**  
+   - **150-200 words at least** combining Skills/Responsibilities/Qualifications  
+   - **Technical Focus**: Tools, systems, methodologies  
+   - **Exclude**: Company name, job title, location  
+   - **Example**:  
+     "Requires Python and SQL for ETL pipeline development... Kubernetes for container orchestration... BS in Computer Science or equivalent..."  
 
-    * **Job Title**: The main title of the role (e.g., "Data Analyst").
-    * **Company Name**: Name of the company if mentioned.
-    * **Location**: Location of the job (e.g., "Remote", "Berlin", "Hybrid - NYC").
-    * **Required Skills**: A cleaned-up list of technical tools, concepts, soft skills, and technologies. Convert phrases like "Python skills" → "Python", and expand acronyms like "ML" → "Machine Learning".
-    * **Required Experience (Years)**: Minimum number of years if explicitly mentioned (e.g., 3, 5).
-    * **Key Responsibilities**: Extract these as a **list** of short, atomic, and technical statements. Each item should reflect a specific responsibility (e.g., "Develop ETL workflows in Airflow", "Manage containerized services using Docker and Kubernetes").
-    * **Other Qualifications**: Extra credentials or requirements, such as degrees, certifications, or industry-specific experience (e.g., "B.S. in Computer Science", "PMP Certification").
-    * **Industry**: Identify the industry relevant to the job using one of the following options if applicable: "tech", "finance", "healthcare", "marketing". If the industry is not specified, return as `"tech"`.
-    * **Summary**: A comprehensive technical summary (~150 words) generated solely from the Required Skills, Key Responsibilities, and Other Qualifications. Focus on tools, systems, methodologies, and technical expectations. Exclude any mention of job title, company name, or location.
-
-3. **Structure the Output**  
-   Use the following JSON format:
-
+4. **Output Format (JSON)**  
 ```json
 {
-  "job_title": "",
-  "company_name": "",
-  "location": "",
-  "required_skills": [],
-  "required_experience_years": "",
-  "key_responsibilities": [],
-  "other_qualifications": [],
-  "industry": "",
-  "summary": ""
+  "job_title": "",               // Normalized title
+  "company_name": "",            // Legal name if available
+  "location": "",                // Standardized format
+  "required_skills": [],         // Cleaned, categorized skills
+  "required_experience_years": "", // Only numerals
+  "key_responsibilities": [],    // Atomic technical items
+  "other_qualifications": [],    // Degrees/certifications
+  "industry": "tech",            // Auto-detected
+  "summary": ""                  // Technical-only summary
 }
 """

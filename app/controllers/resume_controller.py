@@ -13,6 +13,7 @@ from app.services.file_service import (
 from app.utils.resume_template import TEMPLATE
 from app.utils.jd_template import JD_TEMPLATE
 from app.utils.text_util import advanced_ats_similarity
+from app.utils.recommendations import getRecommendations
 import numpy as np
 import traceback
 import random
@@ -91,7 +92,8 @@ def analyze_resume():
         response =  query_engine.query(TEMPLATE)
         response = response.response
         #print("Resume Query Stopped")
-
+        # with open('res.txt','w') as file:
+        #     file.write(str(response))
         response = clean_text(response)
         resume_dict = json.loads(response)
         
@@ -158,6 +160,8 @@ def analyze_resume():
             "justifications":justifications,
             "resume_data": dict(resume_dict),
         }
+        refined_out = getRecommendations(analysis_results)
+        analysis_results.update(refined_out)
         return jsonify(analysis_results), 200
 
     except json.JSONDecodeError as e:

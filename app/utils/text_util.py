@@ -25,7 +25,7 @@ TECHNICAL_KEYWORDS_SEED = set([
 ])
 
 SKILL_SIMILARITY_THRESHOLD = 0.75
-RESPONSIBILITY_SIMILARITY_THRESHOLD = 0.35 # Keeping the lower threshold based on previous feedback
+RESPONSIBILITY_SIMILARITY_THRESHOLD = 0.50 # Keeping the lower threshold based on previous feedback
 PASS_THRESHOLD = 70.0
 RESPONSIBILITY_BONUS_FACTOR = 0.25
 
@@ -193,19 +193,21 @@ def compare_responsibility_lists(
     jd_responsibilities: List[str],
     embed_model: CohereEmbedding,
     threshold: float
-) -> Tuple[List[str], List[str], Dict[str, Tuple[str, float]], float, str, str]:
+) -> Tuple[List[str], List[str], List[str], Dict[str, Tuple[str, float]], float, str, str]:
     """
     Compares responsibilities (JD as queries, Resume as docs).
-    Returns: Tuple[matched_resp, missing_resp, match_details, match_percentage, internal_justification, user_justification]
+    Returns: Tuple[matched_resp, possibly_matched_resp, missing_resp, match_details, 
+                   match_percentage, internal_justification, user_justification]
     """
     internal_notes = []
     user_insight = ""
+    partial_match_threshold = threshold * 0.7  # 70% of main threshold for partial matches
 
     # --- Initial checks ---
     if not jd_responsibilities:
         user_insight = "No key responsibilities listed in the job description."
         internal_notes.append("No JD responsibilities.")
-        return [], [], {}, 0.0, " ".join(internal_notes), user_insight
+        return [], [], [], {}, 0.0, " ".join(internal_notes), user_insight
 
     # --- Preprocessing ---
     original_jd_resp_map = {preprocess_text(r): r for r in jd_responsibilities if isinstance(r, str)}
@@ -213,16 +215,14 @@ def compare_responsibility_lists(
     pp_jd_resp = sorted(list(set(filter(None, [preprocess_text(r) for r in jd_responsibilities]))))
     pp_resume_resp = sorted(list(set(filter(None, [preprocess_text(r) for r in resume_responsibilities]))))
     total_jd_resp_unique = len(pp_jd_resp)
-    internal_notes.append(f"Compared {total_jd_resp_unique} JD resp (query) vs {len(pp_resume_resp)} resume resp (doc). Threshold={threshold}.")
+    internal_notes.append(f"Compared {total_jd_resp_unique} JD resp (query) vs {len(pp_resume_resp)} resume resp (doc). Threshold={threshold} (Partial={partial_match_threshold:.2f}).")
 
     if not pp_jd_resp or not pp_resume_resp:
         missing_list = [original_jd_resp_map.get(r, r) for r in pp_jd_resp]
         user_insight = "Could not compare responsibilities due to lack of valid entries in JD or resume after processing."
         internal_notes.append("One list empty post-processing.")
-        # Return 0% match for bonus calculation if resume responsibilities are missing
-        match_percentage = 0.0 if not pp_resume_resp else 100.0 # Assume 100% if no JD resp specified
-        return [], sorted(missing_list), {}, match_percentage, " ".join(internal_notes), user_insight
-
+        match_percentage = 0.0 if not pp_resume_resp else 100.0
+        return [], [], sorted(missing_list), {}, match_percentage, " ".join(internal_notes), user_insight
 
     # --- Embedding and Similarity ---
     try:
@@ -241,57 +241,89 @@ def compare_responsibility_lists(
         internal_notes.append(f"Embedding/Similarity Error: {e}.")
         user_insight = "An internal error prevented responsibility comparison."
         missing_list = sorted([original_jd_resp_map.get(r, r) for r in pp_jd_resp])
-        return [], missing_list, {}, 0.0, " ".join(internal_notes), user_insight # Return 0% match on error
+        return [], [], missing_list, {}, 0.0, " ".join(internal_notes), user_insight
 
     # --- Matching Logic ---
     matched_jd_resp_pp = []
+    possibly_matched_jd_resp_pp = []  # New: partial matches
     missing_jd_resp_pp = []
     match_details_pp = {}
+    
     for i, jd_resp_pp in enumerate(pp_jd_resp):
         if similarity_matrix.shape[1] > 0:
             best_match_score = np.max(similarity_matrix[i, :])
             best_match_index = np.argmax(similarity_matrix[i, :])
-        else: best_match_score = 0.0; best_match_index = -1
+        else:
+            best_match_score = 0.0
+            best_match_index = -1
 
         if best_match_score >= threshold and best_match_index != -1 and best_match_index < len(pp_resume_resp):
-             matched_jd_resp_pp.append(jd_resp_pp)
-             match_details_pp[jd_resp_pp] = (pp_resume_resp[best_match_index], round(float(best_match_score), 4))
-        else: missing_jd_resp_pp.append(jd_resp_pp)
+            matched_jd_resp_pp.append(jd_resp_pp)
+            match_details_pp[jd_resp_pp] = (pp_resume_resp[best_match_index], round(float(best_match_score), 4))
+        elif best_match_score >= partial_match_threshold and best_match_index != -1 and best_match_index < len(pp_resume_resp):
+            possibly_matched_jd_resp_pp.append(jd_resp_pp)
+            match_details_pp[jd_resp_pp] = (pp_resume_resp[best_match_index], round(float(best_match_score), 4))
+        else:
+            missing_jd_resp_pp.append(jd_resp_pp)
 
-    # --- Calculate Match Percentage & Map Back ---
-    matched_count = len(matched_jd_resp_pp)
-    match_percentage = round((matched_count / total_jd_resp_unique) * 100, 1) if total_jd_resp_unique > 0 else 100.0
-    internal_notes.append(f"Match Percentage: {match_percentage}%.")
+    # --- Calculate Match Percentage (with partial matches counting as 0.5) ---
+    full_match_value = len(matched_jd_resp_pp)
+    partial_match_value = len(possibly_matched_jd_resp_pp) * 0.5
+    effective_match_count = full_match_value + partial_match_value
+    match_percentage = round((effective_match_count / total_jd_resp_unique) * 100, 1) if total_jd_resp_unique > 0 else 100.0
+    
+    internal_notes.append(
+        f"Match Percentage: {match_percentage}% "
+        f"(Full: {len(matched_jd_resp_pp)}, Partial: {len(possibly_matched_jd_resp_pp)})."
+    )
 
+    # --- Map back to original text ---
     final_matched = sorted([original_jd_resp_map.get(r, r) for r in matched_jd_resp_pp])
+    final_possibly_matched = sorted([original_jd_resp_map.get(r, r) for r in possibly_matched_jd_resp_pp])
     final_missing = sorted([original_jd_resp_map.get(r, r) for r in missing_jd_resp_pp])
-    final_match_details = { # Map back using original maps
+    final_match_details = {
         original_jd_resp_map.get(jd_r, jd_r): (original_resume_resp_map.get(res_r, res_r), score)
         for jd_r, (res_r, score) in match_details_pp.items()
     }
 
     # --- Generate User Justification ---
     user_insight_parts = [f"Duty Alignment Check:"]
-    if matched_count > 0 :
-        user_insight_parts.append(f"Resume shows experience potentially related to {matched_count}/{total_jd_resp_unique} listed duties.")
-        # Mention type of matched duties if possible - simplified: show 1-2 examples
-        matched_jd_examples = [f"'{r[:50]}...'" for r in final_matched[:2]]
-        user_insight_parts.append(f"Examples include relevance to duties like {', '.join(matched_jd_examples)}.")
+    if matched_jd_resp_pp or possibly_matched_jd_resp_pp:
+        user_insight_parts.append(
+            f"Resume shows experience related to {len(matched_jd_resp_pp)}/{total_jd_resp_unique} "
+            f"listed duties, with potential partial matches on {len(possibly_matched_jd_resp_pp)} more."
+        )
+        # Show examples of full matches first, then partial
+        examples = []
+        if matched_jd_resp_pp:
+            examples.append(f"clear matches like '{original_jd_resp_map.get(matched_jd_resp_pp[0], matched_jd_resp_pp[0])[:50]}...'")
+        if possibly_matched_jd_resp_pp:
+            examples.append(f"possible matches like '{original_jd_resp_map.get(possibly_matched_jd_resp_pp[0], possibly_matched_jd_resp_pp[0])[:50]}...'")
+        if examples:
+            user_insight_parts.append(f"Examples include {', '.join(examples)}.")
     else:
         user_insight_parts.append(f"Limited direct connection found between specific resume examples and the {total_jd_resp_unique} general duties listed.")
 
     assessment_levels = [
         (65.0, "Suggests good coverage of related duties."),
-        (40.0, "Suggests moderate coverage of related duties."),
-        (10.0, "Suggests some potential links to duties."), # Lowered threshold for 'some'
+        (40.0, "Suggests moderate coverage with some gaps."),
+        (20.0, "Suggests partial coverage of duties."),
         (0.0, "Suggests limited connection to listed duties.")]
     assessment = _get_qualitative_assessment(match_percentage, assessment_levels)
     user_insight_parts.append(assessment)
-    user_insight_parts.append(f"This impacts the score via a calculated bonus.") # Clarify role
+    user_insight_parts.append("Partial matches receive half credit in scoring.")
 
     user_insight = " ".join(user_insight_parts)
 
-    return final_matched, final_missing, final_match_details, match_percentage, " ".join(internal_notes), user_insight
+    return (
+        final_matched,
+        final_possibly_matched,
+        final_missing,
+        final_match_details,
+        match_percentage,
+        " ".join(internal_notes),
+        user_insight
+    )
 
 # --- Main ATS Logic (Revamped Justifications) ---
 def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -394,16 +426,13 @@ def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: D
 
     # --- 4. Key Responsibilities Comparison (for Bonus) ---
     resume_resp_list = []
-    for exp in resume_dict.get("work_experience", []):
-        if isinstance(exp, dict):
-            responsibilities = exp.get("responsibilities")
-            if isinstance(responsibilities, list): resume_resp_list.extend([r for r in responsibilities if isinstance(r, str) and r.strip()])
-            elif isinstance(responsibilities, str) and responsibilities.strip(): resume_resp_list.append(responsibilities)
-
-    matched_resp, missing_resp, resp_match_details, resp_match_percentage, resp_int_just, resp_user_just = compare_responsibility_lists(
+    resume_resp_list = resume_dict.get('key_responsibilities',[])
+    
+    matched_resp, possibly_matched_resp, missing_resp, resp_match_details, resp_match_percentage, resp_int_just, resp_user_just = compare_responsibility_lists(
         resume_resp_list, jd_key_resp_list_orig, embed_model, RESPONSIBILITY_SIMILARITY_THRESHOLD
     )
     results["key_responsibilities_comparison"]["matched_responsibilities"] = matched_resp
+    results["key_responsibilities_comparison"]["possibly_matched_responsibilities"] = possibly_matched_resp  # New field
     results["key_responsibilities_comparison"]["missing_responsibilities"] = missing_resp
     results["key_responsibilities_comparison"]["match_details"] = resp_match_details
     results["key_responsibilities_comparison"]["match_percentage"] = resp_match_percentage
@@ -419,9 +448,14 @@ def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: D
 
     skills_score_100 = results["section_scores"]["skills"]
     summary_score_100 = results["section_scores"]["work_experience_projects"]
+    
+    # Modified scoring with partial matches
+    full_match_value = len(matched_resp)
+    partial_match_value = len(possibly_matched_resp) * 0.5
+    effective_match_count = full_match_value + partial_match_value
+    resp_match_perc_for_bonus = (effective_match_count / len(jd_key_resp_list_orig)) * 100 if jd_key_resp_list_orig else 0
+    
     base_score_100 = (skills_score_100 * weight_skills) + (summary_score_100 * weight_summary)
-
-    resp_match_perc_for_bonus = results["key_responsibilities_comparison"]["match_percentage"]
     bonus_amount = (base_score_100 / 100.0) * RESPONSIBILITY_BONUS_FACTOR * (resp_match_perc_for_bonus / 100.0)
     bonus_percent = round(bonus_amount * 100, 2)
     internal_overall_parts.append(f"Base: {base_score_100:.2f}. Bonus: +{bonus_percent:.2f} (Factor:{RESPONSIBILITY_BONUS_FACTOR}, Resp%:{resp_match_perc_for_bonus:.1f}).")
@@ -432,11 +466,12 @@ def advanced_ats_similarity(resume_dict: Dict[str, Any], job_description_dict: D
     results["pass"] = score_percent >= PASS_THRESHOLD
     internal_overall_parts.append(f"Final: {score_percent:.2f}. Pass: {results['pass']} (Thresh:{PASS_THRESHOLD}).")
 
+    # Rest remains exactly the same
     jd_skills_combined_set = set(filter(None,[preprocess_text(s) for s in jd_req_skills_list_orig]))
     jd_title_lower = str(job_description_dict.get('job_title','')).lower()
     is_technical_job = any(skill in TECHNICAL_KEYWORDS_SEED for skill in jd_skills_combined_set) or \
                        any(indicator in jd_title_lower for indicator in ['engineer', 'developer', 'programmer', 'scientist', 'technical', 'analyst', 'architect', 'data', 'software', 'ml', 'ai', 'backend', 'frontend'])
-    results["notes"] = f"Tech job profile: {is_technical_job}." # Simplified notes
+    results["notes"] = f"Tech job profile: {is_technical_job}."
     results["internal_justification"]["overall"] = " ".join(internal_overall_parts)
 
     # --- 6. Generate User-Friendly Overall Justification ---

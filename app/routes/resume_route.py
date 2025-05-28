@@ -5,6 +5,7 @@ from app.controllers.resume_controller import (
     get_all_resumes,
 )
 
+
 resume_bp = Blueprint("resume", __name__, url_prefix="/api/resumes")
 
 

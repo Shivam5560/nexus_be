@@ -52,12 +52,20 @@ def get_abs_path(relative_path):
     return absolute_path
 
 
-def get_resume_by_user_id(user_id):
+def get_resume_by_id(user_id,resume_id):
     db = get_db()
-    resume = db.resumes.find_one({"user_id": ObjectId(user_id)})
+    resume = db.resumes.find_one({"user_id": ObjectId(user_id),"resume_id":resume_id})
     if resume:
         return Resume.from_dict(resume)
     return None
+
+
+# def get_resume_by_resume_id(user_id):
+#     db = get_db()
+#     resume = db.resumes.find_one({"user_id": ObjectId(user_id)})
+#     if resume:
+#         return Resume.from_dict(resume)
+#     return None
 
 
 def get_all_resumes_by_user_id(user_id):

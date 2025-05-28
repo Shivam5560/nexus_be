@@ -7,16 +7,14 @@ from flask_jwt_extended import JWTManager
 bcrypt = Bcrypt()
 jwt = JWTManager()
 
-def create_app(config_name="default"):
-    """Application factory function."""
-    app = Flask(__name__)
 
-    from app.config import config
+
+def create_app(config_name="default"):
+    app = Flask(__name__)
     app.config.from_object(config[config_name])
 
     bcrypt.init_app(app)
     jwt.init_app(app)
-
     initialize_db(app)
 
     from app.routes.user_route import register_auth_routes
